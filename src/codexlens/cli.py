@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from codexlens.application import run_scan
+from codexlens.config import ModelConfigurationError, resolve_openai_model
 from codexlens.models import ScanConfig
 from codexlens.reporting import render_scan_result
 
@@ -41,6 +42,14 @@ def scan(
         bool,
         typer.Option("--fix", help="Request fixes after findings are available."),
     ] = False,
+    model: Annotated[
+        str | None,
+        typer.Option(
+            "--model",
+            "-m",
+            help="OpenAI model ID for the future AI analysis pass; overrides CODEXLENS_MODEL.",
+        ),
+    ] = None,
 ) -> None:
     """Start a security audit for TARGET."""
 
@@ -50,7 +59,12 @@ def scan(
             param_hint="TARGET",
         )
 
-    result = run_scan(ScanConfig(target=target, fix_enabled=fix))
+    try:
+        selected_model = resolve_openai_model(model)
+    except ModelConfigurationError as error:
+        raise typer.BadParameter(str(error), param_hint=error.source) from error
+
+    result = run_scan(ScanConfig(target=target, fix_enabled=fix, model=selected_model))
     render_scan_result(console, result)
     if result.exit_code:
         raise typer.Exit(code=result.exit_code)

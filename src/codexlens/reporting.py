@@ -31,6 +31,8 @@ def render_scan_result(console: Console, result: ScanResult) -> None:
     details.append(target_kind)
     details.append("\nFix mode: ", style="bold")
     details.append(fix_mode)
+    details.append("\nOpenAI model: ", style="bold")
+    details.append(result.config.model or "not configured")
     console.print(
         Panel(
             details,
@@ -44,7 +46,7 @@ def render_scan_result(console: Console, result: ScanResult) -> None:
     pipeline.add_column("Purpose")
     pipeline.add_column("Status")
     pipeline.add_row("1", "Static analysis", _static_status(result))
-    pipeline.add_row("2", "AI deep scan", "Not run")
+    pipeline.add_row("2", "AI deep scan", "Not run - AI integration not yet implemented")
     pipeline.add_row("3", "Interactive auto-fix", "Not run")
     console.print(pipeline)
 

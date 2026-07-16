@@ -27,6 +27,7 @@ class ScanConfig:
 
     target: Path
     fix_enabled: bool = False
+    model: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

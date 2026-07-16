@@ -21,6 +21,8 @@ def test_scan_help_documents_target_and_fix() -> None:
     assert result.exit_code == 0
     assert "TARGET" in result.output
     assert "--fix" in result.output
+    assert "--model" in result.output
+    assert "CODEXLENS_MODEL" in result.output
 
 
 def test_clean_directory_scan_reports_static_analysis(tmp_path: Path) -> None:
@@ -61,6 +63,59 @@ def test_fix_flag_is_acknowledged_without_writing_target(tmp_path: Path) -> None
     assert "Fix mode was requested" in result.output
     assert "were changed" in result.output
     assert source_file.read_text(encoding="utf-8") == original_contents
+
+
+def test_model_flag_is_rendered_without_requiring_an_api_key(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    source_file = tmp_path / "app.py"
+    source_file.write_text("print('hello')\n", encoding="utf-8")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    result = runner.invoke(app, ["scan", str(source_file), "--model", "custom/model:2026-07"])
+
+    assert result.exit_code == 0
+    assert "OpenAI model: custom/model:2026-07" in result.output
+    assert "AI deep scan" in result.output
+    assert "Not run" in result.output
+
+
+def test_environment_model_is_used_when_no_flag_is_provided(tmp_path: Path, monkeypatch) -> None:
+    source_file = tmp_path / "app.py"
+    source_file.write_text("print('hello')\n", encoding="utf-8")
+    monkeypatch.setenv("CODEXLENS_MODEL", "environment-model")
+
+    result = runner.invoke(app, ["scan", str(source_file)])
+
+    assert result.exit_code == 0
+    assert "OpenAI model: environment-model" in result.output
+
+
+def test_model_flag_overrides_environment_model(tmp_path: Path, monkeypatch) -> None:
+    source_file = tmp_path / "app.py"
+    source_file.write_text("print('hello')\n", encoding="utf-8")
+    monkeypatch.setenv("CODEXLENS_MODEL", "environment-model")
+
+    result = runner.invoke(app, ["scan", str(source_file), "-m", "command-line-model"])
+
+    assert result.exit_code == 0
+    assert "OpenAI model: command-line-model" in result.output
+    assert "environment-model" not in result.output
+
+
+def test_blank_model_configuration_is_rejected(tmp_path: Path, monkeypatch) -> None:
+    source_file = tmp_path / "app.py"
+    source_file.write_text("print('hello')\n", encoding="utf-8")
+    monkeypatch.setenv("CODEXLENS_MODEL", " ")
+
+    environment_result = runner.invoke(app, ["scan", str(source_file)])
+    cli_result = runner.invoke(app, ["scan", str(source_file), "--model", "  "])
+
+    assert environment_result.exit_code == 2
+    assert "CODEXLENS_MODEL" in environment_result.output
+    assert cli_result.exit_code == 2
+    assert "non-empty OpenAI model ID" in cli_result.output
 
 
 def test_confirmed_finding_returns_one_and_redacts_secret(tmp_path: Path) -> None:
