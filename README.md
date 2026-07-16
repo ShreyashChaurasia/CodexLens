@@ -4,9 +4,11 @@ CodexLens is an AI-powered security auditor for Python projects. It combines fas
 
 ## Current milestone
 
-The CLI foundation is ready. `scan` validates a file or directory and previews the planned three-pass pipeline. It does **not** yet analyze code, call the OpenAI API, generate patches, or modify files.
+Pass 1 is implemented. `scan` recursively discovers Python files, skips common virtual-environment and build directories, and runs local checks for hardcoded credentials, high-entropy secret candidates, and unsafe Python calls. It does **not** call the OpenAI API, generate patches, or modify files.
 
 ## Setup
+
+CodexLens requires Python 3.11 or newer.
 
 ```bash
 uv sync --all-groups
@@ -14,7 +16,7 @@ uv run codexlens --help
 uv run codexlens scan ./my_project
 ```
 
-`--fix` is accepted now to establish the command contract, but it does not write changes until the interactive patching pass is implemented.
+`--fix` is accepted now to establish the command contract, but it does not write changes until the interactive patching pass is implemented. Confirmed security findings return exit code `1`; an incomplete scan returns `3`.
 
 ## Planned pipeline
 

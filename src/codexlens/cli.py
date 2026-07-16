@@ -39,10 +39,18 @@ def scan(
     ],
     fix: Annotated[
         bool,
-        typer.Option("--fix", help="Propose fixes after findings are available."),
+        typer.Option("--fix", help="Request fixes after findings are available."),
     ] = False,
 ) -> None:
     """Start a security audit for TARGET."""
 
+    if target.is_file() and target.suffix.lower() != ".py":
+        raise typer.BadParameter(
+            "TARGET must be a Python (.py) file or a directory.",
+            param_hint="TARGET",
+        )
+
     result = run_scan(ScanConfig(target=target, fix_enabled=fix))
     render_scan_result(console, result)
+    if result.exit_code:
+        raise typer.Exit(code=result.exit_code)
