@@ -7,7 +7,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from codexlens.models import ScanResult, Severity
+from codexlens.models import AiScanStatus, ScanResult, Severity
 
 _SEVERITY_STYLES = {
     Severity.CRITICAL: "bold red",
@@ -18,7 +18,7 @@ _SEVERITY_STYLES = {
 
 
 def render_scan_result(console: Console, result: ScanResult) -> None:
-    """Render local findings without exposing secret values or source snippets."""
+    """Render findings without exposing source snippets or raw model output."""
 
     target_kind = "directory" if result.config.target.is_dir() else "file"
     fix_mode = "requested" if result.config.fix_enabled else "disabled"
@@ -46,7 +46,7 @@ def render_scan_result(console: Console, result: ScanResult) -> None:
     pipeline.add_column("Purpose")
     pipeline.add_column("Status")
     pipeline.add_row("1", "Static analysis", _static_status(result))
-    pipeline.add_row("2", "AI deep scan", "Not run - AI integration not yet implemented")
+    pipeline.add_row("2", "AI deep scan", _ai_status(result))
     pipeline.add_row("3", "Interactive auto-fix", "Not run")
     console.print(pipeline)
 
@@ -59,6 +59,12 @@ def render_scan_result(console: Console, result: ScanResult) -> None:
 
     if static.diagnostics:
         _render_diagnostics(console, result)
+
+    if result.ai.findings:
+        _render_ai_findings(console, result)
+
+    if result.ai.diagnostics:
+        _render_ai_diagnostics(console, result)
 
     if result.config.fix_enabled:
         console.print(
@@ -78,6 +84,17 @@ def _static_status(result: ScanResult) -> str:
         f"{len(static.candidates)} candidates"
     )
     return f"Incomplete: {summary}" if static.diagnostics else f"Completed: {summary}"
+
+
+def _ai_status(result: ScanResult) -> str:
+    ai = result.ai
+    if ai.status is AiScanStatus.SKIPPED:
+        return "Skipped: no model configured"
+
+    summary = f"{ai.units_scanned} contexts, {len(ai.findings)} review findings"
+    if ai.status is AiScanStatus.COMPLETED:
+        return f"Completed: {summary}"
+    return f"Incomplete: {summary}; see diagnostics"
 
 
 def _render_findings(console: Console, result: ScanResult) -> None:
@@ -116,7 +133,57 @@ def _render_diagnostics(console: Console, result: ScanResult) -> None:
     console.print(diagnostics)
 
 
-def _location(path: Path, line: int | None, target: Path) -> str:
+def _render_ai_findings(console: Console, result: ScanResult) -> None:
+    findings = Table(
+        title="AI-assisted review findings (human review required)",
+        show_header=True,
+        header_style="bold magenta",
+    )
+    findings.add_column("Category", style="bold", no_wrap=True)
+    findings.add_column("Severity", no_wrap=True)
+    findings.add_column("Model confidence", no_wrap=True)
+    findings.add_column("Location", no_wrap=True)
+    findings.add_column("Finding", overflow="fold")
+
+    for finding in result.ai.findings:
+        details = Text()
+        details.append(finding.title, style="bold")
+        details.append("\n")
+        details.append(finding.description)
+        details.append("\nImpact: ", style="bold")
+        details.append(finding.impact)
+        details.append("\nRecommendation: ", style="bold")
+        details.append(finding.recommendation)
+        findings.add_row(
+            Text(finding.category),
+            f"[{_SEVERITY_STYLES[finding.severity]}]{finding.severity.value.upper()}[/]",
+            finding.confidence.value,
+            _location(finding.path, finding.start_line, result.config.target),
+            details,
+        )
+    console.print(findings)
+
+
+def _render_ai_diagnostics(console: Console, result: ScanResult) -> None:
+    diagnostics = Table(
+        title="AI deep-scan diagnostics",
+        show_header=True,
+        header_style="bold yellow",
+    )
+    diagnostics.add_column("Location", no_wrap=True)
+    diagnostics.add_column("Diagnostic")
+
+    for diagnostic in result.ai.diagnostics:
+        diagnostics.add_row(
+            _location(diagnostic.path, None, result.config.target),
+            diagnostic.message,
+        )
+    console.print(diagnostics)
+
+
+def _location(path: Path | None, line: int | None, target: Path) -> str:
+    if path is None:
+        return "AI service"
     base = target if target.is_dir() else target.parent
     try:
         display_path = path.relative_to(base).as_posix()

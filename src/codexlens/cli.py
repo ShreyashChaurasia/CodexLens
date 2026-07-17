@@ -47,7 +47,7 @@ def scan(
         typer.Option(
             "--model",
             "-m",
-            help="OpenAI model ID for the future AI analysis pass; overrides CODEXLENS_MODEL.",
+            help="OpenAI model ID for Pass 2 AI analysis; overrides CODEXLENS_MODEL.",
         ),
     ] = None,
 ) -> None:

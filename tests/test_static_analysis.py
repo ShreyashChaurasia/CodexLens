@@ -71,7 +71,9 @@ def test_known_credential_pattern_takes_precedence_over_assignment(tmp_path: Pat
 def test_placeholders_and_environment_lookups_are_not_hardcoded_secrets(tmp_path: Path) -> None:
     source_file = _write(
         tmp_path / "settings.py",
-        'DB_PASSWORD = "${DB_PASSWORD}"\napi_key = os.environ["API_KEY"]\n',
+        'DB_PASSWORD = "${DB_PASSWORD}"\n'
+        'API_SECRET = "[REDACTED_SECRET]"\n'
+        'api_key = os.environ["API_KEY"]\n',
     )
 
     result = run_static_analysis(source_file)

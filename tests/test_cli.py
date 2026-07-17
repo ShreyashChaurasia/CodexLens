@@ -65,7 +65,7 @@ def test_fix_flag_is_acknowledged_without_writing_target(tmp_path: Path) -> None
     assert source_file.read_text(encoding="utf-8") == original_contents
 
 
-def test_model_flag_is_rendered_without_requiring_an_api_key(
+def test_model_flag_reports_an_incomplete_ai_pass_without_an_api_key(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -75,31 +75,35 @@ def test_model_flag_is_rendered_without_requiring_an_api_key(
 
     result = runner.invoke(app, ["scan", str(source_file), "--model", "custom/model:2026-07"])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 3
     assert "OpenAI model: custom/model:2026-07" in result.output
     assert "AI deep scan" in result.output
-    assert "Not run" in result.output
+    assert "Incomplete" in result.output
+    assert "OPENAI_API_KEY" in result.output
 
 
 def test_environment_model_is_used_when_no_flag_is_provided(tmp_path: Path, monkeypatch) -> None:
     source_file = tmp_path / "app.py"
     source_file.write_text("print('hello')\n", encoding="utf-8")
     monkeypatch.setenv("CODEXLENS_MODEL", "environment-model")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     result = runner.invoke(app, ["scan", str(source_file)])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 3
     assert "OpenAI model: environment-model" in result.output
+    assert "AI deep scan" in result.output
 
 
 def test_model_flag_overrides_environment_model(tmp_path: Path, monkeypatch) -> None:
     source_file = tmp_path / "app.py"
     source_file.write_text("print('hello')\n", encoding="utf-8")
     monkeypatch.setenv("CODEXLENS_MODEL", "environment-model")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     result = runner.invoke(app, ["scan", str(source_file), "-m", "command-line-model"])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 3
     assert "OpenAI model: command-line-model" in result.output
     assert "environment-model" not in result.output
 

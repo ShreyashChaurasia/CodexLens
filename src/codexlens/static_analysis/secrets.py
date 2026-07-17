@@ -9,6 +9,7 @@ from codexlens.models import Finding, FindingConfidence, Severity
 
 MIN_ENTROPY_LENGTH = 32
 MIN_SHANNON_ENTROPY = 3.5
+REDACTED_SECRET = "[REDACTED_SECRET]"
 
 _KNOWN_SECRET_PATTERNS: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     (
@@ -109,6 +110,22 @@ def find_secret_findings(path: Path, source: str) -> tuple[Finding, ...]:
     return tuple(findings)
 
 
+def redact_sensitive_source(source: str) -> str:
+    """Replace likely credentials before source code leaves the local machine.
+
+    Replacements deliberately preserve newlines so source-line references remain
+    meaningful to downstream analysis.
+    """
+
+    redacted = source
+    for _, _, pattern in _KNOWN_SECRET_PATTERNS:
+        redacted = pattern.sub(REDACTED_SECRET, redacted)
+
+    redacted = _ASSIGNMENT_PATTERN.sub(_redact_sensitive_assignment, redacted)
+    redacted = _MAPPING_PATTERN.sub(_redact_sensitive_mapping, redacted)
+    return _STRING_LITERAL_PATTERN.sub(_redact_high_entropy_literal, redacted)
+
+
 def _known_secret_on_line(line: str) -> tuple[str, str] | None:
     for title, description, pattern in _KNOWN_SECRET_PATTERNS:
         if pattern.search(line):
@@ -127,6 +144,34 @@ def _sensitive_assignment_on_line(line: str) -> str | None:
         if _is_sensitive_name(name) and not _is_placeholder(value):
             return name
     return None
+
+
+def _redact_sensitive_assignment(match: re.Match[str]) -> str:
+    if not _is_sensitive_name(match.group("name")) or _is_placeholder(match.group("value")):
+        return match.group(0)
+    return _replace_match_value(match)
+
+
+def _redact_sensitive_mapping(match: re.Match[str]) -> str:
+    if not _is_sensitive_name(match.group("name")) or _is_placeholder(match.group("value")):
+        return match.group(0)
+    return _replace_match_value(match)
+
+
+def _replace_match_value(match: re.Match[str]) -> str:
+    return (
+        match.string[match.start() : match.start("value")]
+        + REDACTED_SECRET
+        + match.string[match.end("value") : match.end()]
+    )
+
+
+def _redact_high_entropy_literal(match: re.Match[str]) -> str:
+    value = match.group("value")
+    if not _is_high_entropy_literal(value):
+        return match.group(0)
+    quote = match.group("quote")
+    return f"{quote}{REDACTED_SECRET}{quote}"
 
 
 def _is_sensitive_name(name: str) -> bool:
@@ -161,6 +206,7 @@ def _is_placeholder(value: str) -> bool:
         "example",
         "placeholder",
         "replace_me",
+        "[redacted_secret]",
         "your_api_key",
         "your_secret",
     }
@@ -169,14 +215,19 @@ def _is_placeholder(value: str) -> bool:
 
 def _has_high_entropy_literal(line: str) -> bool:
     for match in _STRING_LITERAL_PATTERN.finditer(line):
-        value = match.group("value")
-        if _is_placeholder(value) or _looks_non_secret(value):
-            continue
-        if len(value) < MIN_ENTROPY_LENGTH or _character_groups(value) < 3:
-            continue
-        if _shannon_entropy(value) >= MIN_SHANNON_ENTROPY:
+        if _is_high_entropy_literal(match.group("value")):
             return True
     return False
+
+
+def _is_high_entropy_literal(value: str) -> bool:
+    return (
+        not _is_placeholder(value)
+        and not _looks_non_secret(value)
+        and len(value) >= MIN_ENTROPY_LENGTH
+        and _character_groups(value) >= 3
+        and _shannon_entropy(value) >= MIN_SHANNON_ENTROPY
+    )
 
 
 def _looks_non_secret(value: str) -> bool:
