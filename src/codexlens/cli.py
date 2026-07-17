@@ -7,9 +7,15 @@ import typer
 from rich.console import Console
 
 from codexlens.application import run_scan
+from codexlens.auto_fix.models import PatchProposal, PatchStatus
+from codexlens.auto_fix.workflow import run_fix_workflow
 from codexlens.config import ModelConfigurationError, resolve_openai_model
 from codexlens.models import ScanConfig
-from codexlens.reporting import render_scan_result
+from codexlens.reporting import (
+    render_fix_result,
+    render_patch_proposal,
+    render_scan_result,
+)
 
 app = typer.Typer(
     name="codexlens",
@@ -40,7 +46,10 @@ def scan(
     ],
     fix: Annotated[
         bool,
-        typer.Option("--fix", help="Request fixes after findings are available."),
+        typer.Option(
+            "--fix",
+            help="Request confirmation-gated patches for completed AI findings.",
+        ),
     ] = False,
     model: Annotated[
         str | None,
@@ -66,5 +75,24 @@ def scan(
 
     result = run_scan(ScanConfig(target=target, fix_enabled=fix, model=selected_model))
     render_scan_result(console, result)
-    if result.exit_code:
-        raise typer.Exit(code=result.exit_code)
+    exit_code = result.exit_code
+    if result.config.fix_enabled:
+        fix_result = run_fix_workflow(result.config, result.ai, confirm=_confirm_patch)
+        render_fix_result(console, fix_result, result.config.target)
+        if fix_result.status is PatchStatus.FAILED:
+            exit_code = max(exit_code, 3)
+    if exit_code:
+        raise typer.Exit(code=exit_code)
+
+
+def _confirm_patch(proposal: PatchProposal) -> bool:
+    """Render a local diff and require an explicit interactive opt-in to write it."""
+
+    render_patch_proposal(console, proposal)
+    try:
+        return typer.confirm(
+            f"Apply this patch to {proposal.relative_path.as_posix()}?",
+            default=False,
+        )
+    except (typer.Abort, EOFError, OSError):
+        return False

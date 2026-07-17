@@ -79,6 +79,13 @@ class AiFinding:
     recommendation: str
     cwe_ids: tuple[str, ...] = ()
     assumptions: tuple[str, ...] = ()
+    # These fields are created locally while Pass 2 validates a model location.
+    # Pass 3 uses them to bind a requested fix to exactly the source unit the
+    # model reviewed, rather than trusting a model-supplied path or range.
+    source_unit_id: str = ""
+    source_unit_start_line: int = 0
+    source_unit_end_line: int = 0
+    source_unit_sha256: str = ""
 
 
 @dataclass(frozen=True, slots=True)

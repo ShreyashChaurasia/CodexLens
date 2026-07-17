@@ -1,5 +1,6 @@
 """OpenAI Responses integration and local validation for CodexLens Pass 2."""
 
+import hashlib
 import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -409,6 +410,10 @@ def _parse_finding(
             recommendation=_safe_text(recommendation),
             cwe_ids=tuple(_safe_text(item) for item in cwe_ids),
             assumptions=tuple(_safe_text(item) for item in assumptions),
+            source_unit_id=unit.unit_id,
+            source_unit_start_line=unit.start_line,
+            source_unit_end_line=unit.end_line,
+            source_unit_sha256=hashlib.sha256(unit.source.encode("utf-8")).hexdigest(),
         ),
         None,
     )
@@ -472,7 +477,11 @@ def _relative_path(path: Path, base: Path) -> str:
 def _safe_text(value: str) -> str:
     """Redact accidental credential-like text before it reaches terminal output."""
 
-    return redact_sensitive_source(value).strip()
+    cleaned = "".join(
+        character if character in {"\n", "\t"} or character.isprintable() else " "
+        for character in value
+    )
+    return redact_sensitive_source(cleaned).strip()
 
 
 _ALLOWED_CATEGORIES = frozenset(

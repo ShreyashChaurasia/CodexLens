@@ -54,6 +54,9 @@ def test_ai_analysis_uses_the_selected_model_and_redacts_source(tmp_path: Path) 
     assert result.findings[0].path == Path("routes.py")
     assert result.findings[0].start_line == unit.start_line
     assert result.findings[0].confidence.value == "high"
+    assert result.findings[0].source_unit_id == unit.unit_id
+    assert result.findings[0].source_unit_start_line == unit.start_line
+    assert result.findings[0].source_unit_end_line == unit.end_line
 
     call = responses.calls[0]
     assert call["model"] == "custom/provider-model:2026-07"
