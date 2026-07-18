@@ -38,6 +38,13 @@ class AiFindingConfidence(StrEnum):
     LOW = "low"
 
 
+class OutputFormat(StrEnum):
+    """Presentation format selected at the CLI boundary."""
+
+    RICH = "rich"
+    JSON = "json"
+
+
 @dataclass(frozen=True, slots=True)
 class ScanConfig:
     """Options selected for one CodexLens scan request."""

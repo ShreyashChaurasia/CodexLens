@@ -51,6 +51,84 @@ Pass 3 is intentionally conservative:
 
 If input is unavailable, a proposal is declined by default. CodexLens never executes a model-provided patch command or trusts a model-provided file path or diff.
 
+## CI and machine-readable output
+
+The terminal UI is the default. Use `--format json` for a stable,
+source-free report that can be stored as a CI artifact or consumed by another
+tool:
+
+```bash
+uv run codexlens scan src --format json > codexlens-report.json
+```
+
+The JSON schema version is `codexlens.scan.v1`. It includes relative locations,
+finding metadata, diagnostics, pass status, and the same exit code as the
+terminal command, but omits source code, raw model responses, source-unit
+bindings, and patch diffs. Exit code `0` means no confirmed static findings,
+`1` means confirmed static findings, and `3` means an incomplete scan.
+AI findings remain human-review candidates and do not independently fail CI.
+
+`--format json` cannot be combined with `--fix`: patch review requires the
+interactive Rich diff and explicit confirmation.
+
+The included [CI workflow](.github/workflows/ci.yml) pins Python 3.11, runs
+Ruff and pytest, and uploads this JSON report as a workflow artifact.
+
+## Architecture and safety model
+
+```text
+Python target
+    |
+    +-- Pass 1: local regex / entropy / AST checks
+    |       `--> confirmed static findings and diagnostics
+    |
+    `-- Pass 2: bounded, redacted source units --(selected OpenAI model)--> structured review
+                    |                                            |
+                    `----------- local schema, path, and line validation
+                                                                 |
+--fix only ------------------------------------------------------+
+    |
+    `-- Pass 3: fresh source snapshot --> constrained replacement --> local diff and checks
+                                                                     |
+                                                           explicit y / n in Rich UI
+                                                                     |
+                                                   re-hash + atomic same-directory write
+```
+
+CodexLens treats both scanned source and model output as untrusted data. It
+does not trust model-supplied paths, diffs, shell commands, or line locations.
+Before a patch is shown, it is bound to the reviewed source unit, checked for
+scope, syntax, encoding, sensitive content, response bindings, and size; it is
+re-hashed immediately before the atomic replacement. A result is still a
+security review aid, not a security guarantee: keep human review, tests, and
+normal deployment controls in the loop.
+
+## Owned ExpenseFlow demo
+
+[`examples/expenseflow/`](examples/expenseflow/README.md) is an owned,
+intentionally vulnerable multi-tenant FastAPI fixture. It provides a
+reproducible IDOR/broken-access-control demo, an exploit proof, a hardened
+reference, and a disposable workspace for the live `--fix` recording. It uses
+only synthetic data and must never be deployed.
+
+For a no-key judge walkthrough, run the built-in replay:
+
+```bash
+uv run codexlens demo
+```
+
+`demo` is prominently labelled as an **offline recorded replay** and makes no
+OpenAI API request. It stages a small owned ExpenseFlow fixture in a temporary
+directory, replays schema-valid Pass 2 and Pass 3 responses through the same
+local validation code, shows the Rich diff, asks for the same explicit `y`/`n`
+confirmation, verifies the authorization invariant after an accepted patch,
+and then discards the staged source. Use the commands in the example README
+when recording the real selected-model API flow.
+
+The [Build Week recording script](BUILD_WEEK_DEMO_SCRIPT.md) separates the
+no-key replay from the live selected-model flow and lists the remaining
+submission steps that need your real account, video, and feedback session ID.
+
 ## Planned pipeline
 
 1. **Static analysis** — local regex, entropy, and AST checks for high-signal issues.

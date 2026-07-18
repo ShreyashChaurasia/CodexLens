@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Python 3.11 quality checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --all-groups --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Test
+        run: uv run pytest
+
+      - name: Validate owned ExpenseFlow fixture
+        working-directory: examples/expenseflow
+        run: |
+          uv sync --all-groups --frozen
+          uv run pytest
+          uv run ruff check .
+
+      - name: Generate machine-readable static report
+        run: uv run codexlens scan src --format json > codexlens-report.json
+
+      - name: Upload static report
+        uses: actions/upload-artifact@v7
+        with:
+          name: codexlens-static-report
+          path: codexlens-report.json
+          if-no-files-found: error
+          retention-days: 7

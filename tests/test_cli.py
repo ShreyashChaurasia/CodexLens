@@ -31,6 +31,7 @@ def test_root_help_lists_scan_command() -> None:
     assert result.exit_code == 0
     assert "CodexLens" in result.output
     assert "scan" in result.output
+    assert "demo" in result.output
 
 
 def test_scan_help_documents_target_and_fix() -> None:

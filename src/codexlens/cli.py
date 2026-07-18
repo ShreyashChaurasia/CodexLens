@@ -10,11 +10,13 @@ from codexlens.application import run_scan
 from codexlens.auto_fix.models import PatchProposal, PatchStatus
 from codexlens.auto_fix.workflow import run_fix_workflow
 from codexlens.config import ModelConfigurationError, resolve_openai_model
-from codexlens.models import ScanConfig
+from codexlens.demo import run_offline_demo
+from codexlens.models import OutputFormat, ScanConfig
 from codexlens.reporting import (
     render_fix_result,
     render_patch_proposal,
     render_scan_result,
+    serialize_scan_result,
 )
 
 app = typer.Typer(
@@ -29,6 +31,15 @@ console = Console()
 @app.callback()
 def codexlens() -> None:
     """Run CodexLens commands."""
+
+
+@app.command()
+def demo() -> None:
+    """Run the owned ExpenseFlow offline replay without an OpenAI API request."""
+
+    result = run_offline_demo(console, confirm=_confirm_patch)
+    if result.exit_code:
+        raise typer.Exit(code=result.exit_code)
 
 
 @app.command()
@@ -59,6 +70,14 @@ def scan(
             help="OpenAI model ID for Pass 2 AI analysis; overrides CODEXLENS_MODEL.",
         ),
     ] = None,
+    output_format: Annotated[
+        OutputFormat,
+        typer.Option(
+            "--format",
+            help="Output format: rich for the terminal UI or json for CI.",
+            case_sensitive=False,
+        ),
+    ] = OutputFormat.RICH,
 ) -> None:
     """Start a security audit for TARGET."""
 
@@ -68,13 +87,22 @@ def scan(
             param_hint="TARGET",
         )
 
+    if fix and output_format is OutputFormat.JSON:
+        raise typer.BadParameter(
+            "--format json cannot be used with --fix because patch review requires the Rich UI.",
+            param_hint="--format",
+        )
+
     try:
         selected_model = resolve_openai_model(model)
     except ModelConfigurationError as error:
         raise typer.BadParameter(str(error), param_hint=error.source) from error
 
     result = run_scan(ScanConfig(target=target, fix_enabled=fix, model=selected_model))
-    render_scan_result(console, result)
+    if output_format is OutputFormat.JSON:
+        typer.echo(serialize_scan_result(result), color=False)
+    else:
+        render_scan_result(console, result)
     exit_code = result.exit_code
     if result.config.fix_enabled:
         fix_result = run_fix_workflow(result.config, result.ai, confirm=_confirm_patch)

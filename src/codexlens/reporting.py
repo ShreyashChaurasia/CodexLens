@@ -1,5 +1,6 @@
 """Rich rendering helpers for CodexLens command output."""
 
+import json
 from pathlib import Path
 
 from rich.console import Console
@@ -67,6 +68,98 @@ def render_scan_result(console: Console, result: ScanResult) -> None:
 
     if result.ai.diagnostics:
         _render_ai_diagnostics(console, result)
+
+
+def serialize_scan_result(result: ScanResult) -> str:
+    """Return a stable, source-free JSON report for CI and other tools."""
+
+    static = result.static
+    ai = result.ai
+    return json.dumps(
+        {
+            "schema_version": "codexlens.scan.v1",
+            "target": {
+                "kind": "directory" if result.config.target.is_dir() else "file",
+                "path": _target_path(result.config.target),
+            },
+            "model": result.config.model,
+            "exit_code": result.exit_code,
+            "static": {
+                "status": "complete" if static.complete and not static.diagnostics else "partial",
+                "files_discovered": static.files_discovered,
+                "files_scanned": static.files_scanned,
+                "findings": [
+                    {
+                        "rule_id": finding.rule_id,
+                        "title": finding.title,
+                        "severity": finding.severity.value,
+                        "confidence": finding.confidence.value,
+                        "description": finding.description,
+                        "location": _json_location(
+                            finding.path,
+                            result.config.target,
+                            finding.line,
+                            finding.column,
+                        ),
+                        "cwe": finding.cwe,
+                    }
+                    for finding in static.findings
+                ],
+                "diagnostics": [
+                    {
+                        "kind": diagnostic.kind,
+                        "message": diagnostic.message,
+                        "location": _json_location(
+                            diagnostic.path,
+                            result.config.target,
+                            diagnostic.line,
+                            diagnostic.column,
+                        ),
+                    }
+                    for diagnostic in static.diagnostics
+                ],
+            },
+            "ai": {
+                "status": ai.status.value,
+                "model": ai.model,
+                "summary": ai.summary,
+                "units_discovered": ai.units_discovered,
+                "units_scanned": ai.units_scanned,
+                "findings": [
+                    {
+                        "category": finding.category,
+                        "severity": finding.severity.value,
+                        "confidence": finding.confidence.value,
+                        "title": finding.title,
+                        "description": finding.description,
+                        "location": _json_location(
+                            finding.path,
+                            result.config.target,
+                            finding.start_line,
+                            None,
+                        ),
+                        "impact": finding.impact,
+                        "recommendation": finding.recommendation,
+                        "cwe_ids": list(finding.cwe_ids),
+                        "assumptions": list(finding.assumptions),
+                    }
+                    for finding in ai.findings
+                ],
+                "diagnostics": [
+                    {
+                        "kind": diagnostic.kind,
+                        "message": diagnostic.message,
+                        "path": _json_path(diagnostic.path, result.config.target),
+                    }
+                    for diagnostic in ai.diagnostics
+                ],
+            },
+        },
+        ensure_ascii=False,
+        indent=2,
+        sort_keys=True,
+    )
+
 
 def _static_status(result: ScanResult) -> str:
     static = result.static
@@ -255,3 +348,35 @@ def _patch_location(path: Path | None, target: Path) -> str:
     if not path.is_absolute():
         return path.as_posix()
     return _location(path, None, target)
+
+
+def _target_path(target: Path) -> str:
+    """Avoid emitting the caller's absolute workspace path in JSON reports."""
+
+    return "." if target.is_dir() else target.name
+
+
+def _json_location(
+    path: Path,
+    target: Path,
+    line: int | None,
+    column: int | None,
+) -> dict[str, int | str | None]:
+    return {
+        "path": _json_path(path, target),
+        "line": line,
+        "column": column,
+    }
+
+
+def _json_path(path: Path | None, target: Path) -> str | None:
+    if path is None:
+        return None
+    if not path.is_absolute():
+        return path.as_posix()
+
+    base = target if target.is_dir() else target.parent
+    try:
+        return path.resolve().relative_to(base.resolve()).as_posix()
+    except ValueError:
+        return path.name
