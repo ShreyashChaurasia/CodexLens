@@ -4,6 +4,7 @@ from pathlib import Path
 import typer
 from typer.testing import CliRunner
 
+from codexlens import __version__
 from codexlens.auto_fix.models import (
     FixCandidate,
     FixRunResult,
@@ -40,6 +41,13 @@ def test_root_help_lists_scan_command() -> None:
     assert "CodexLens" in result.output
     assert "scan" in result.output
     assert "demo" in result.output
+
+
+def test_root_version_reports_installed_package_version() -> None:
+    result = runner.invoke(app, ["--version"])
+
+    assert result.exit_code == 0
+    assert result.output.strip() == __version__
 
 
 def test_scan_help_documents_target_and_fix() -> None:

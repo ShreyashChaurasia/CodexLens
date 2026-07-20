@@ -1,11 +1,13 @@
 """Typer commands and terminal-facing validation for CodexLens."""
 
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Annotated
 
 import typer
 from rich.console import Console
 
+from codexlens import __version__
 from codexlens.application import run_scan
 from codexlens.auto_fix.models import PatchProposal, PatchStatus
 from codexlens.auto_fix.workflow import run_fix_workflow
@@ -28,8 +30,31 @@ app = typer.Typer(
 console = Console()
 
 
+def _show_version(value: bool) -> bool:
+    """Print the installed package version for release and support workflows."""
+
+    if not value:
+        return value
+    try:
+        installed_version = version("codexlens")
+    except PackageNotFoundError:
+        installed_version = __version__
+    typer.echo(installed_version)
+    raise typer.Exit()
+
+
 @app.callback()
-def codexlens() -> None:
+def codexlens(
+    show_version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=_show_version,
+            help="Show the installed CodexLens version and exit.",
+            is_eager=True,
+        ),
+    ] = False,
+) -> None:
     """Run CodexLens commands."""
 
 

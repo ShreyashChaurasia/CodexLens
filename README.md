@@ -193,4 +193,10 @@ uv run ruff check .
 uv run pytest
 ```
 
+## Project information
+
+- [Release history](https://github.com/ShreyashChaurasia/CodexLens/releases)
+- [Changelog](CHANGELOG.md)
+- [Security policy](SECURITY.md)
+
 CodexLens is released under the [MIT License](LICENSE).

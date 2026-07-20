@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish-github-release:
+    name: Build and publish GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --all-groups --frozen
+
+      - name: Verify quality
+        run: |
+          uv run ruff check .
+          uv run pytest
+
+      - name: Verify tag matches package version
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          package_version="$(uv run python -c "from importlib.metadata import version; print(version('codexlens'))")"
+          test "$tag_version" = "$package_version"
+
+      - name: Build distributions
+        run: uv build --out-dir dist
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: codexlens-${{ github.ref_name }}-distributions
+          path: dist/
+          if-no-files-found: error
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --verify-tag \
+              --title "CodexLens $GITHUB_REF_NAME" \
+              --notes-file RELEASE_NOTES.md
+          fi
