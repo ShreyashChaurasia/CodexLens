@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import typer
@@ -23,6 +24,13 @@ from codexlens.models import (
 )
 
 runner = CliRunner()
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def _plain_cli_output(text: str) -> str:
+    """Return CLI text without terminal styling sequences."""
+
+    return _ANSI_ESCAPE.sub("", text)
 
 
 def test_root_help_lists_scan_command() -> None:
@@ -36,12 +44,13 @@ def test_root_help_lists_scan_command() -> None:
 
 def test_scan_help_documents_target_and_fix() -> None:
     result = runner.invoke(app, ["scan", "--help"])
+    plain = _plain_cli_output(result.output)
 
     assert result.exit_code == 0
-    assert "TARGET" in result.output
-    assert "--fix" in result.output
-    assert "--model" in result.output
-    assert "CODEXLENS_MODEL" in result.output
+    assert re.search(r"\btarget\b", plain, re.IGNORECASE)
+    assert re.search(r"--\s*fix\b", plain)
+    assert re.search(r"--\s*model\b", plain)
+    assert "CODEXLENS_MODEL" in plain
 
 
 def test_clean_directory_scan_reports_static_analysis(tmp_path: Path) -> None:

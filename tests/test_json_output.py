@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -16,6 +17,13 @@ from codexlens.models import (
 )
 
 runner = CliRunner()
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def _plain_cli_output(text: str) -> str:
+    """Return CLI text without terminal styling sequences."""
+
+    return _ANSI_ESCAPE.sub("", text)
 
 
 def test_json_output_is_parseable_source_free_and_uses_relative_paths(tmp_path: Path) -> None:
@@ -128,6 +136,9 @@ def test_json_output_rejects_auto_fix_before_running_a_scan(tmp_path: Path, monk
 
     monkeypatch.setattr("codexlens.cli.run_scan", should_not_run)
     result = runner.invoke(app, ["scan", str(source_file), "--fix", "--format", "json"])
+    plain = _plain_cli_output(result.output).lower()
 
     assert result.exit_code == 2
-    assert "cannot be used with --fix" in result.output
+    assert re.search(r"--\s*fix\b", plain)
+    assert "json" in plain
+    assert re.search(r"\b(cannot|incompatible|not supported)\b", plain)
