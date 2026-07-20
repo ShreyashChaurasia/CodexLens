@@ -1,39 +1,49 @@
-# ExpenseFlow demo fixture
+# ExpenseFlow: Intentionally Vulnerable Demo Service
 
-ExpenseFlow is an owned, intentionally vulnerable multi-tenant FastAPI service
-used to demonstrate CodexLens. It contains only synthetic actors and in-memory
-data. **Do not deploy it, connect it to real systems, or reuse its authorization
-code as an implementation example.**
+ExpenseFlow is a self-contained, intentionally vulnerable multi-tenant FastAPI
+service used to evaluate CodexLens. It contains synthetic actors and in-memory
+data only. **It must not be deployed, connected to real systems, or reused as
+authorization guidance.**
 
-Its primary scenario is broken object-level authorization (an IDOR): an Acme
-manager has the manager role but can approve a Globex expense because the route
-loads an attacker-controlled expense ID without first enforcing the caller's
-tenant scope. That distinction makes it a useful business-logic example rather
-than a simple pattern-matching exercise.
+The primary scenario is broken object-level authorization (IDOR): an Acme
+manager has the required role but can approve a Globex expense because the
+route loads an attacker-controlled expense ID without enforcing the caller's
+tenant boundary. Detecting this flaw requires reasoning about the authenticated
+actor, requested expense, and tenant relationship rather than matching a simple
+insecure-code pattern.
 
-The route module also contains two secondary, detection-only scenarios:
+## Expected evaluation outcomes
+
+| Evaluation step | Expected result |
+| --- | --- |
+| Baseline exploit proof | The test passes by showing an Acme manager receives `200 OK` while approving a Globex expense. |
+| Offline CodexLens replay | Requires no API credentials and never changes the repository. |
+| Live accepted patch | Changes only the disposable `work/` copy, never `vulnerable/`. |
+| Post-patch regression | Cross-tenant approval returns `403` or `404`, and the target expense remains unapproved. |
+
+## Security scenarios
 
 | Scenario | Why it matters | Demo scope |
 | --- | --- | --- |
+| Cross-tenant approval / IDOR | A manager can approve another tenant's expense. | Primary live-patch and regression scenario |
 | Mass assignment | The update model permits protected fields such as `tenant_id`, `status`, and `approved_by`. | Detection only |
-| Check-then-act budget approval | A real persistent implementation would need transactional concurrency control. | Detection only |
-| Cross-tenant approval / IDOR | A manager can approve another tenant's expense. | Primary live patch and regression demo |
+| Check-then-act budget approval | A persistent implementation would require transactional concurrency control. | Detection only |
 
 ## Safety boundaries
 
-- Run the FastAPI app locally only; do not expose it on a network interface.
-- The canonical [`vulnerable/`](vulnerable/) source is deliberately unsafe and
-  must remain unchanged.
-- For a live patch demo, scan only the ignored, disposable `work/` copy created
-  by `scripts/prepare_demo.py`.
-- A live CodexLens scan sends source context to OpenAI. Use only this synthetic
-  fixture or other code you are authorized to share.
-- Re-running `prepare_demo.py` deletes and recreates `work/`, so it discards
-  every work-copy edit.
+- The FastAPI server is intended for local loopback use only.
+- [`vulnerable/`](vulnerable/) is the canonical unsafe source and remains
+  unchanged throughout a live-patch demonstration.
+- `scripts/prepare_demo.py` creates the ignored, disposable `work/` copy. Only
+  that copy is a valid live `--fix` target.
+- A live CodexLens scan sends source context to OpenAI; this synthetic fixture
+  is suitable for that purpose.
+- Re-running `prepare_demo.py` deletes and recreates `work/`, discarding all
+  work-copy edits.
 
-## Install and prove the vulnerability
+## Run the baseline and reproduce the vulnerability
 
-From this directory:
+At `examples/expenseflow/`:
 
 ```bash
 uv sync --all-groups
@@ -41,18 +51,18 @@ uv run pytest tests/test_exploit_proof.py tests/test_hardened_reference.py
 uv run ruff check .
 ```
 
-`test_exploit_proof.py` is expected to **pass** because it proves the unsafe
-behavior: an Acme manager receives `200 OK` while approving the Globex expense.
-`test_hardened_reference.py` demonstrates the desired property without editing
-the canonical vulnerable source.
+`test_exploit_proof.py` is expected to pass because it demonstrates the defect.
+`test_hardened_reference.py` documents the intended behavior without modifying
+the vulnerable source.
 
-To inspect the issue manually, start the app bound to local loopback only:
+For manual reproduction, start the server on the local loopback interface:
 
 ```bash
 uv run uvicorn vulnerable.app.main:app --host 127.0.0.1 --port 8001
 ```
 
-In a separate terminal, use the command appropriate for your shell.
+From a second terminal, submit the cross-tenant approval request with the
+applicable shell command.
 
 Bash, zsh, or Git Bash:
 
@@ -69,75 +79,76 @@ Invoke-RestMethod -Method Post `
   -Headers @{ "X-Demo-User" = "manager-acme" }
 ```
 
-Both requests should succeed before the repair, despite `manager-acme` belonging
-to a different tenant. Stop Uvicorn with `Ctrl+C` when finished.
+Before repair, both requests return a successful approval even though
+`manager-acme` belongs to a different tenant. `Ctrl+C` stops the local server.
 
-## No-key CodexLens walkthrough
+## Credential-free CodexLens replay
 
-The root project has a separate offline walkthrough:
+CodexLens includes an offline recorded replay at the repository root:
 
 ```bash
 cd ../..
 uv run codexlens demo
 ```
 
-It is an **offline recorded replay**, not a scan of this FastAPI fixture. It
-makes no OpenAI API request and operates on a temporary, self-discarding owned
-example. Use it when you need to demonstrate the Rich UI without credentials;
-use the next section for a real API-backed ExpenseFlow scan.
+The replay enables credential-free review of the Rich terminal workflow. It is
+not a scan of this FastAPI service, makes no OpenAI API request, and operates
+only on a temporary self-discarding example.
 
-## Live CodexLens patch flow
+## Live patch evaluation
 
-Start in the repository root. Ensure the root CodexLens environment has already
-been installed with `uv sync --all-groups`. Then prepare a fresh disposable
-workspace and run the live scan:
+The following PowerShell sequence prepares a disposable workspace and requests
+a live scan. It is run from the repository root after the main CodexLens
+environment has been installed with `uv sync --all-groups`.
 
 ```powershell
 uv run python examples/expenseflow/scripts/prepare_demo.py
-$env:OPENAI_API_KEY = "your-api-key"
-$env:CODEXLENS_MODEL = "your-model-id"
+$env:OPENAI_API_KEY = "<api-key>"
+$env:CODEXLENS_MODEL = "<model-id>"
 uv run codexlens scan examples/expenseflow/work/app/main.py --fix
 ```
 
-On Bash or zsh, set the same variables with `export` before the final command.
-For a Build Week recording, choose a model available to the recording account;
-CodexLens itself does not require a specific model family.
+Bash or zsh equivalent:
 
-Pass 2 can return one or more model-dependent review candidates. For each
-eligible Pass 3 proposal, review the locally generated diff rather than
-assuming the IDOR finding will appear first. Press `n` for an unrelated or
-unsafe proposal. Press `y` only after confirming that the repair narrowly
-scopes the expense lookup to the authenticated actor's tenant—for example by
-using the existing `get_expense_for_tenant` helper. CodexLens can apply at most
-one accepted patch per run.
+```bash
+uv run python examples/expenseflow/scripts/prepare_demo.py
+export OPENAI_API_KEY="<api-key>"
+export CODEXLENS_MODEL="<model-id>"
+uv run codexlens scan examples/expenseflow/work/app/main.py --fix
+```
 
-The preparation script copies `vulnerable/` to the ignored `work/` folder;
-therefore a confirmed `y` changes only the disposable copy, never the canonical
-fixture.
+The selected model must be available to the configured OpenAI API account and
+support the structured response format required by CodexLens. Pass 2 findings
+may vary by model. Each eligible Pass 3 proposal is shown as a locally
+generated diff; unrelated or unsafe proposals are declined with `n`.
+
+An accepted repair must scope the expense lookup to the authenticated actor's
+tenant, such as by using `get_expense_for_tenant`. CodexLens applies at most one
+accepted patch per scan. A confirmed `y` changes only `work/app/main.py`; the
+canonical `vulnerable/` service remains unchanged.
 
 ## Verify an accepted patch
 
-Return to this directory after accepting a suitable patch:
+After a suitable patch has been accepted, return to `examples/expenseflow/` and
+run:
 
 ```bash
-cd examples/expenseflow
 uv run pytest tests/test_live_patch.py
 ```
 
-This regression is meaningful only after a repair: it expects the cross-tenant
-request to return `403` or `404` and verifies that the Globex expense remains
-unapproved. Before a repair, it should fail. If `work/` has not been prepared,
-pytest skips the test; a skip is not proof that the vulnerability was fixed.
+The regression verifies that cross-tenant approval is denied and that the
+Globex expense remains unapproved. Before a repair it fails. Without a prepared
+`work/` directory it skips, which is not evidence of a successful repair.
 
-To reset the disposable workspace, return to the repository root and run:
+The disposable workspace is reset from the repository root:
 
 ```bash
 uv run python examples/expenseflow/scripts/prepare_demo.py
 ```
 
-## Recording and repository context
+## Further documentation
 
-See the root [README](../../README.md) for the full pipeline, model/privacy
-notes, JSON reporting, and exit codes. The
-[Build Week recording script](../../BUILD_WEEK_DEMO_SCRIPT.md) provides the
-recommended exploit → live scan → reviewed diff → regression-test narrative.
+The root [README](../../README.md) describes the full pipeline, data-handling
+boundaries, JSON reporting, and exit codes. The
+[Build Week recording script](../../BUILD_WEEK_DEMO_SCRIPT.md) documents the
+exploit → live scan → reviewed diff → regression-test sequence.

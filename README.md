@@ -1,132 +1,132 @@
 # CodexLens
 
-CodexLens is a Python CLI security auditor for code that needs more than pattern
-matching. It combines local static checks with optional AI-assisted review of
-business logic, then presents constrained code fixes as a Rich terminal diff
-that must be explicitly approved before a real source file is changed.
+CodexLens is a Python CLI security auditor for projects that need more than
+pattern matching. It combines deterministic local checks with optional
+AI-assisted business-logic review, then presents constrained code fixes in a
+Rich terminal diff. A source file changes only after explicit confirmation.
 
-Built as an OpenAI Build Week project, CodexLens is deliberately model-neutral:
-you choose the OpenAI model ID for each live scan rather than relying on a
-hard-coded model-family default.
+This repository provides a reproducible OpenAI Build Week demonstration of the
+complete workflow: static analysis, an AI review candidate, a confirmation-gated
+patch, and a security regression test.
 
-## How it works
+## Evaluation paths
 
-| Pass | Runs where | Purpose |
-| --- | --- | --- |
-| 1. Static analysis | Locally | Finds high-signal secret and insecure-call patterns without an API key. |
-| 2. AI deep scan | Optional OpenAI Responses API request | Reviews bounded source context for business-logic risks that are difficult to express as a local rule. |
-| 3. Interactive auto-fix | Optional, after a completed Pass 2 scan | Generates a narrowly scoped replacement, validates it locally, shows a diff, and waits for your approval. |
+| Path | Credentials | Command | Outcome |
+| --- | --- | --- | --- |
+| Local static audit | None | `uv run codexlens scan src` | Pass 1 detection with no network request. |
+| Offline workflow replay | None | `uv run codexlens demo` | A deterministic Rich-terminal replay; no OpenAI request and no repository modification. |
+| Live end-to-end evaluation | OpenAI API key and model ID | [ExpenseFlow](examples/expenseflow/README.md) | A selected OpenAI model reviews and proposes a fix for the ExpenseFlow IDOR scenario. |
 
-Pass 1 currently detects likely hardcoded credentials and high-entropy secret
-candidates, dynamic shell use, `shell=True`, `eval`/`exec`, unsafe
-pickle/YAML deserialization, dynamically constructed database queries, and
-disabled TLS verification. Pass 2 asks the selected model to review for broken
-object-level authorization (including IDOR), privilege escalation, mass
-assignment, and race conditions. AI results are **review candidates**, not
-confirmed findings or a security guarantee.
+The offline replay is prominently labelled **offline recorded replay**. It is a
+deterministic product walkthrough, not a substitute for a live model result.
 
-## Quick start — no API key required
+## Capabilities
+
+| Pass | Execution | Purpose | Output |
+| --- | --- | --- | --- |
+| 1. Static analysis | Local | Scans Python files with regex, entropy, and AST checks. | Confirmed findings, candidates, and diagnostics. |
+| 2. AI deep scan | Optional OpenAI Responses API request | Reviews bounded, redacted source units for business-logic weaknesses. | Structured findings that require human review. |
+| 3. Interactive auto-fix | Optional after completed Pass 2 | Proposes a narrowly scoped source-unit replacement. | A locally generated diff and an explicit `y`/`n` decision. |
+
+Pass 1 detects likely hardcoded credentials and high-entropy secret candidates,
+dynamic shell use, `shell=True`, `eval`/`exec`, unsafe pickle/YAML
+deserialization, dynamically constructed database queries, and disabled TLS
+verification. Pass 2 assesses broken object-level authorization (including
+IDOR), privilege escalation, mass assignment, and race conditions.
+
+AI findings are review candidates rather than confirmed vulnerabilities. The
+tool is a security-review aid, not a security guarantee.
+
+## Installation and local verification
 
 ### Requirements
 
 - Python 3.11 or newer
 - [uv](https://docs.astral.sh/uv/)
-- An OpenAI API key only if you use Pass 2 or Pass 3
+- An OpenAI API key only for Pass 2 and Pass 3
 
-From the repository root:
+At the repository root:
 
 ```bash
 uv sync --all-groups
 uv run codexlens --help
 uv run codexlens scan src
-```
-
-The final command runs local Pass 1 only and makes no network request. For a
-deterministic, judge-friendly walkthrough of all three UI stages, run:
-
-```bash
 uv run codexlens demo
 ```
 
-`demo` is prominently labelled an **offline recorded replay**. It does not call
-OpenAI or modify this repository: it stages an owned ExpenseFlow fixture in a
-temporary directory, replays recorded structured responses through the normal
-local validation paths, shows the same confirmation prompt, and discards the
-temporary file afterward. It is useful for an offline walkthrough, but it is
-not a live model scan.
+`scan src` runs Pass 1 only when no model is configured and makes no external
+request. `demo` stages a self-contained ExpenseFlow example in a temporary directory,
+replays schema-valid Pass 2 and Pass 3 responses through CodexLens' normal
+local validation path, presents the confirmation prompt, and discards the
+temporary source after completion.
 
-## Run a live AI scan
+## Live AI scanning
 
-Choose a text-capable model that your API key can access and that supports the
-structured response format used by CodexLens. Set `CODEXLENS_MODEL` once for
-your shell, or pass `--model`/`-m` per command; the command-line value wins.
-CodexLens accepts the selected non-empty model ID as-is and does not impose a
-model-family allowlist.
+Live AI scanning requires an OpenAI API key and an accessible, text-capable
+model that supports the structured response format used by CodexLens. The
+model ID is supplied per live scan or through `CODEXLENS_MODEL`; CodexLens has
+no hard-coded model-family default or client-side model allowlist.
 
 PowerShell:
 
 ```powershell
-$env:OPENAI_API_KEY = "your-api-key"
-$env:CODEXLENS_MODEL = "your-model-id"
+$env:OPENAI_API_KEY = "<api-key>"
+$env:CODEXLENS_MODEL = "<model-id>"
 uv run codexlens scan ./my_project
-uv run codexlens scan ./my_project --model another-model-id
+uv run codexlens scan ./my_project --model "another-model-id"
 ```
 
 Bash or zsh:
 
 ```bash
-export OPENAI_API_KEY="your-api-key"
-export CODEXLENS_MODEL="your-model-id"
+export OPENAI_API_KEY="<api-key>"
+export CODEXLENS_MODEL="<model-id>"
 uv run codexlens scan ./my_project
 ```
 
-Without a selected model, CodexLens intentionally stops after local Pass 1.
-With one, it uses the OpenAI Responses API for Pass 2; Pass 3 sends a separate
-request only when `--fix` is also supplied. Consult the official OpenAI
+The `--model` / `-m` value overrides `CODEXLENS_MODEL`. Without either value,
+CodexLens intentionally completes only local Pass 1. With a model configured,
+Pass 2 uses the OpenAI Responses API and Pass 3 makes a separate request only
+when `--fix` is present. Model capabilities can be confirmed through OpenAI's
 [model catalog](https://developers.openai.com/api/docs/models) and
-[Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs)
-when choosing a model.
+[Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs).
 
-> **Before running a live scan:** Code context is sent to OpenAI and API usage
-> is charged to your account. CodexLens bounds and line-maps the context and
-> applies heuristic redaction for known credentials, sensitive assignments, and
-> high-entropy literals, but no redaction approach can guarantee that every
-> secret or sensitive detail is removed. Scan only code you are authorized to
-> share, and use synthetic or non-sensitive fixtures for demonstrations.
+> **Data-handling notice:** A live scan sends bounded source context to OpenAI,
+> and API usage is billed to the associated account. Known credentials,
+> sensitive assignments, and high-entropy literals are redacted heuristically
+> before submission, and API requests set `store=False`; these controls do not
+> guarantee removal of every sensitive detail. Live scanning is appropriate
+> only for code authorized for sharing with the selected service.
 
-## Review and apply a fix
+## Interactive patch review
 
-Add `--fix` to a live scan to request a Pass 3 proposal for completed AI
-findings:
+A live Pass 3 run is requested with `--fix`:
 
 ```bash
-uv run codexlens scan ./my_project --model your-model-id --fix
+uv run codexlens scan ./my_project --model "model-id" --fix
 ```
 
-For each eligible candidate, CodexLens generates the displayed unified diff
-locally from a complete replacement for one reviewed source unit. Read the
-diff and enter `y` only if you want to apply it. `n`, Enter, unavailable input,
-or an interrupted prompt all decline the proposal. Declining one proposal can
-move on to another eligible candidate; at most one validated patch can be
-applied in a single run.
+| Safeguard | Behavior |
+| --- | --- |
+| Eligibility | Only findings from a completed Pass 2 scan and bound to a reviewed Python source unit can reach Pass 3. |
+| Preview | CodexLens generates the unified diff locally after validating the replacement's target, scope, syntax, sensitive-content policy, bindings, and size. |
+| Confirmation | `y` is the only input that applies a proposal. `n`, Enter, missing input, or an interrupted prompt declines it. |
+| Application | A fresh file hash is checked before an atomic same-directory replacement. A run applies at most one validated patch. |
 
-Before an accepted patch reaches disk, CodexLens verifies its response binding,
-target scope, syntax, sensitive-content policy, and size. It captures a fresh
-file hash and performs an atomic same-directory replacement only if the file
-has not changed since review. It never executes model-supplied commands, trusts
-a model-supplied path or diff, or writes a file without explicit confirmation.
-After a successful patch, rerun the scan and your normal tests before reviewing
-another change.
+Declining a proposal permits review of another eligible proposal. After an
+accepted patch, a new scan and the project's test suite provide the next
+verification step. CodexLens does not execute model-provided commands or trust
+model-provided file paths and diffs.
 
-## ExpenseFlow: the reproducible showcase
+## ExpenseFlow showcase
 
-[`examples/expenseflow/`](examples/expenseflow/README.md) is an owned,
-intentionally vulnerable multi-tenant FastAPI service with synthetic data. Its
-primary scenario is a manager in one tenant approving another tenant's expense:
-a realistic broken-object-authorization / IDOR flaw that a role check alone
-does not prevent.
+[`examples/expenseflow/`](examples/expenseflow/README.md) is a self-contained,
+intentionally vulnerable multi-tenant FastAPI service with synthetic data. The
+primary scenario is a manager in one tenant approving an expense belonging to
+another tenant: a broken-object-authorization / IDOR flaw that a role check
+alone does not prevent.
 
-The fixture gives a complete evidence trail:
+The baseline evidence is reproducible:
 
 ```bash
 cd examples/expenseflow
@@ -134,56 +134,56 @@ uv sync --all-groups
 uv run pytest tests/test_exploit_proof.py tests/test_hardened_reference.py
 ```
 
-The first test deliberately passes by proving the vulnerable cross-tenant
-approval. The second demonstrates the expected protected behavior. The example
-README includes the disposable live `--fix` workflow and its post-patch
-regression test. Never deploy or reuse this fixture's authorization code.
+The exploit-proof test passes by demonstrating the vulnerable cross-tenant
+approval. The hardened-reference test documents the intended security property.
+The example README contains the isolated live-patch workflow and post-patch
+regression test. The fixture must not be deployed or reused outside this
+controlled demonstration.
 
-For the Build Week recording order and submission checklist, see
-[BUILD_WEEK_DEMO_SCRIPT.md](BUILD_WEEK_DEMO_SCRIPT.md). It clearly separates
-the no-key replay from a real selected-model demonstration.
+The [Build Week recording script](BUILD_WEEK_DEMO_SCRIPT.md) documents the
+exploit → live scan → reviewed diff → regression-test sequence and separates
+the no-key replay from the live selected-model demonstration.
 
-## CI, JSON reports, and exit codes
+## CI, reports, and exit codes
 
-The Rich terminal UI is the default. Use `--format json` for a stable report in
-CI or another tool:
+The Rich terminal UI is the default. `--format json` produces a stable,
+machine-readable report for CI and other tooling:
 
 ```bash
 uv run codexlens scan src --format json > codexlens-report.json
 ```
 
-The report schema is `codexlens.scan.v1`. It includes relative locations,
+The report schema is `codexlens.scan.v1`. It contains relative locations,
 finding metadata, diagnostics, pass status, and the exit code. It intentionally
 omits raw source, raw Responses API output, source-unit bindings, and patch
-diffs. Finding text can still describe code-derived behavior, so treat the
-report as potentially sensitive.
+diffs. Finding descriptions can still contain code-derived information, so the
+report should be handled as potentially sensitive.
 
 | Exit code | Meaning |
 | --- | --- |
 | `0` | The requested scan completed with no confirmed static finding. |
-| `1` | The scan completed and found one or more confirmed static findings. |
-| `3` | Part of the requested scan or fix could not complete safely; inspect the diagnostic output. |
+| `1` | The scan completed with one or more confirmed static findings. |
+| `3` | A requested scan or fix did not complete safely; the output contains a diagnostic. |
 
-AI review candidates do not independently fail CI. `--format json` cannot be
-combined with `--fix`, because reviewing a patch requires the interactive Rich
-diff and explicit confirmation.
+AI review candidates do not independently fail CI. `--format json` and `--fix`
+cannot be combined because patch review requires the interactive Rich diff and
+explicit confirmation.
 
-The included [GitHub Actions workflow](.github/workflows/ci.yml) installs the
+The included [GitHub Actions workflow](.github/workflows/ci.yml) installs
 locked dependencies on Python 3.11, runs Ruff and pytest for both projects, and
-uploads a static JSON report as an artifact.
+uploads the static JSON report as an artifact.
 
-## Safety and limitations
+## Scope and security posture
 
-- Pass 1 is local; Pass 2 and Pass 3 are opt-in and request `store=False`.
-- Static checks and redaction are deliberately narrow heuristics, not complete
-  data-loss prevention or vulnerability coverage.
-- CodexLens audits Python source files only. Large or incomplete AI context is
-  reported as a diagnostic and produces exit code `3` rather than being silently
-  treated as a complete review.
-- Treat both scanned code and model output as untrusted. Keep human review,
-  tests, and normal deployment controls in the loop.
-- The project is a CLI designed for Windows, macOS, and Linux shells; the
-  examples above show both PowerShell and POSIX environment syntax.
+- Pass 1 is local. Pass 2 and Pass 3 are opt-in and request `store=False`.
+- Static detection and redaction are narrow heuristics, not complete
+  vulnerability coverage or data-loss prevention.
+- CodexLens audits Python source files only. Incomplete static or AI coverage
+  produces diagnostics and exit code `3` instead of a silent success.
+- Scanned code and model output are treated as untrusted data. Human review,
+  tests, and normal deployment controls remain required.
+- The CLI targets Windows, macOS, and Linux shells; both PowerShell and POSIX
+  environment-variable syntax are documented above.
 
 ## Development
 
@@ -193,4 +193,4 @@ uv run ruff check .
 uv run pytest
 ```
 
-The project is released under the [MIT License](LICENSE).
+CodexLens is released under the [MIT License](LICENSE).
