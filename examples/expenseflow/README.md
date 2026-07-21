@@ -1,10 +1,10 @@
-# ExpenseFlow: intentionally vulnerable demo service
+# ExpenseFlow: intentionally vulnerable example application
 
-ExpenseFlow is a small FastAPI app I use to demonstrate the kind of
-authorization bug CodexLens is meant to catch. It intentionally contains real
-security mistakes, but every actor and record is fake and stored in memory.
-Run it locally only. Do not deploy it, connect it to real systems, or reuse its
-authorization code as a reference.
+ExpenseFlow is an intentionally vulnerable FastAPI example included with
+CodexLens. It demonstrates the kind of authorization bug the scanner is meant
+to help developers review. Every actor and record is fake and stored in
+memory. Run it locally only. Do not deploy it, connect it to real systems, or
+reuse its authorization code as a reference.
 
 The main scenario is broken object-level authorization (IDOR): an Acme manager
 has the right role but can approve a Globex expense because the route accepts an
@@ -12,24 +12,23 @@ attacker-controlled expense ID without checking the manager's tenant. Finding
 that requires following the actor, the requested object, and the tenant
 relationship—not just matching a risky API call.
 
-## What this demo shows
+## What this example covers
 
 | Step | Expected result |
 | --- | --- |
 | Baseline exploit proof | The test passes by showing that an Acme manager receives `200 OK` while approving a Globex expense. |
-| Offline walkthrough | It needs no API credentials, makes no OpenAI request, and never edits this repository. |
 | Live accepted patch | It changes only the disposable `work/` copy, never `vulnerable/`. |
 | Post-patch regression | Cross-tenant approval returns `403` or `404`, and the target expense stays unapproved. |
 
 ## The intentional flaws
 
-| Scenario | Why it matters | Demo scope |
+| Scenario | Why it matters | Example scope |
 | --- | --- | --- |
 | Cross-tenant approval / IDOR | A manager can approve another tenant's expense. | Primary live-patch and regression scenario |
 | Mass assignment | The update model allows protected fields such as `tenant_id`, `status`, and `approved_by`. | Detection only |
 | Check-then-act budget approval | A real persistent implementation would need transactional concurrency control. | Detection only |
 
-## Keep this demo local
+## Keep this example local
 
 - `vulnerable/` is the canonical unsafe source. It should stay unchanged.
 - `scripts/prepare_demo.py` creates the ignored, disposable `work/` copy. Only
@@ -37,10 +36,10 @@ relationship—not just matching a risky API call.
 - Running the preparation script again deletes and recreates `work/`, so it
   discards any prior work-copy edits.
 - A live CodexLens scan sends source context to OpenAI. This fixture is
-  synthetic and intended for that demonstration.
-- Keep `OPENAI_API_KEY` out of recordings, screenshots, and shell history.
+  synthetic and intended for this example.
+- Keep `OPENAI_API_KEY` out of logs, screenshots, and shell history.
 
-## Set up the demo and prove the bug
+## Set up the example and prove the bug
 
 ExpenseFlow has its own `uv` project and requires Python 3.11 or newer. From
 `examples/expenseflow/`:
@@ -82,18 +81,6 @@ Invoke-RestMethod -Method Post `
 Before a repair, both commands report a successful approval even though
 `manager-acme` belongs to a different tenant. Press `Ctrl+C` to stop the local
 server.
-
-## Try the offline walkthrough
-
-From the repository root, with the main CodexLens dependencies installed:
-
-```bash
-uv run codexlens demo
-```
-
-This is an offline recorded replay. It uses recorded responses with a
-temporary internal fixture, so it does not scan this FastAPI service, call the
-OpenAI API, or change the repository.
 
 ## Run a live review
 
@@ -139,7 +126,7 @@ reasoning and evidence before asking for a fix.
 When a Pass 3 proposal appears, inspect the diff. Typing `y` writes it;
 typing `n`, pressing Enter, or closing the prompt leaves the file alone. An
 accepted patch can change only `work/app/main.py` and CodexLens applies at most
-one patch in a scan. `vulnerable/` remains the baseline for the demo.
+one patch in a scan. `vulnerable/` remains the baseline for the example.
 
 ## Verify an accepted patch
 
@@ -163,6 +150,4 @@ uv run python examples/expenseflow/scripts/prepare_demo.py
 ## Next steps
 
 The root [README](../../README.md) covers installation, the three-pass
-pipeline, live-model configuration, JSON reports, and exit codes. For a
-recording-ready walkthrough, use the
-[Build Week demo and video guide](../../BUILD_WEEK_DEMO_SCRIPT.md).
+pipeline, live-model configuration, JSON reports, and exit codes.

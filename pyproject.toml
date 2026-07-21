@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "codexlens"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI-powered security auditing for Python projects."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -44,9 +44,6 @@ dev = [
     "pytest>=8.0.0,<10.0.0",
     "ruff>=0.8.0,<1.0.0",
 ]
-
-[tool.hatch.build]
-exclude = ["/src/codexlens/BUILD_WEEK_ROADMAP.md"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/codexlens"]

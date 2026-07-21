@@ -46,7 +46,6 @@ def test_root_help_lists_scan_command() -> None:
     assert banner_lines <= output_lines
     assert "Security review for business-logic bugs." in plain
     assert "scan" in plain
-    assert "demo" in plain
 
 
 def test_root_version_reports_installed_package_version() -> None:

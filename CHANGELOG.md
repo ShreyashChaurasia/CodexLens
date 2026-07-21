@@ -4,6 +4,19 @@ All notable changes to CodexLens are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-07-22
+
+### Removed
+
+- A non-production walkthrough command and temporary planning artifacts.
+
+### Changed
+
+- Reframed ExpenseFlow as a reusable, intentionally vulnerable integration
+  example.
+- Added the ANSI Shadow project mark to the README, root help, and version
+  output.
+
 ## [0.1.0] - 2026-07-20
 
 ### Added

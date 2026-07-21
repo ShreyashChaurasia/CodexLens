@@ -2,12 +2,12 @@
 
 ## Supported versions
 
-CodexLens is in its initial public release series. Security fixes are applied
-to the latest `0.1.x` release.
+CodexLens is in its `0.2.x` release series. Security fixes are applied to the
+latest `0.2.x` release.
 
 | Version | Supported |
 | --- | --- |
-| 0.1.x | Yes |
+| 0.2.x | Yes |
 | Earlier versions | No |
 
 ## Reporting a vulnerability

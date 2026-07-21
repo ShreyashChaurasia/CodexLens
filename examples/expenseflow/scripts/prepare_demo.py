@@ -1,4 +1,4 @@
-"""Create a disposable ExpenseFlow workspace for the live CodexLens patch demo."""
+"""Create a disposable ExpenseFlow workspace for a live CodexLens patch example."""
 
 from pathlib import Path
 from shutil import copytree, rmtree
@@ -19,7 +19,7 @@ def main() -> None:
         rmtree(WORKSPACE)
 
     copytree(CANONICAL_SOURCE, WORKSPACE)
-    print(f"Prepared disposable demo workspace: {WORKSPACE}")
+    print(f"Prepared disposable example workspace: {WORKSPACE}")
     print("Scan work/app/main.py with CodexLens; vulnerable/ remains unchanged.")
 
 

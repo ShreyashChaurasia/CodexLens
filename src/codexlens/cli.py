@@ -12,7 +12,6 @@ from codexlens.application import run_scan
 from codexlens.auto_fix.models import PatchProposal, PatchStatus
 from codexlens.auto_fix.workflow import run_fix_workflow
 from codexlens.config import ModelConfigurationError, resolve_openai_model
-from codexlens.demo import run_offline_demo
 from codexlens.models import OutputFormat, ScanConfig
 from codexlens.reporting import (
     render_fix_result,
@@ -79,15 +78,6 @@ def codexlens(
     ] = False,
 ) -> None:
     """Run CodexLens commands."""
-
-
-@app.command()
-def demo() -> None:
-    """Run the owned ExpenseFlow offline replay without an OpenAI API request."""
-
-    result = run_offline_demo(console, confirm=_confirm_patch)
-    if result.exit_code:
-        raise typer.Exit(code=result.exit_code)
 
 
 @app.command()

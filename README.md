@@ -149,21 +149,9 @@ model-provided paths or diffs.
 `--format json` cannot be combined with `--fix` because patch review needs the
 interactive Rich terminal UI and an explicit confirmation.
 
-## Try the offline walkthrough
+## ExpenseFlow example
 
-```bash
-codexlens demo
-```
-
-This is an **offline recorded replay**, not a live model result. It stages a
-temporary, owned ExpenseFlow fixture, sends recorded structured responses
-through CodexLens' local validation path, presents the same confirmation step,
-and discards the fixture afterward. It never calls the OpenAI API or changes
-your repository.
-
-## ExpenseFlow demo
-
-[ExpenseFlow](examples/expenseflow/README.md) is the intentionally vulnerable
+[ExpenseFlow](examples/expenseflow/README.md) is an intentionally vulnerable
 FastAPI example included with this project. Its main scenario is a manager in
 one tenant approving an expense from another tenant: an IDOR / broken
 object-level authorization flaw that a role check alone does not prevent.
@@ -180,9 +168,6 @@ The exploit-proof test passes by demonstrating the bug. The hardened-reference
 test records the behavior a real fix should preserve. The example README
 includes the disposable live-patch workflow and regression test. Do not deploy
 the fixture or reuse it as authorization guidance.
-
-For a complete recording runbook, see the
-[Build Week demo and video guide](BUILD_WEEK_DEMO_SCRIPT.md).
 
 ## CI and JSON reports
 
