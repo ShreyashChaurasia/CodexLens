@@ -1,189 +1,200 @@
 # CodexLens
 
-CodexLens is a Python CLI security auditor for projects that need more than
-pattern matching. It combines deterministic local checks with optional
-AI-assisted business-logic review, then presents constrained code fixes in a
-Rich terminal diff. A source file changes only after explicit confirmation.
+[PyPI](https://pypi.org/project/codexlens/) · [GitHub Releases](https://github.com/ShreyashChaurasia/CodexLens/releases) · [Changelog](CHANGELOG.md)
 
-This repository provides a reproducible OpenAI Build Week demonstration of the
-complete workflow: static analysis, an AI review candidate, a confirmation-gated
-patch, and a security regression test.
+I built CodexLens because static scanners are good at finding known patterns,
+but they often miss how authorization, state changes, and business rules fit
+together. CodexLens is a Python CLI that starts with fast local checks, can
+optionally ask an OpenAI model to review business logic, and shows every
+proposed fix as a diff before it touches a file.
 
-## Evaluation paths
+Nothing is overwritten automatically. CodexLens applies a patch only if you
+explicitly type `y` at the terminal.
 
-| Path | Credentials | Command | Outcome |
-| --- | --- | --- | --- |
-| Local static audit | None | `uv run codexlens scan src` | Pass 1 detection with no network request. |
-| Offline workflow replay | None | `uv run codexlens demo` | A deterministic Rich-terminal replay; no OpenAI request and no repository modification. |
-| Live end-to-end evaluation | OpenAI API key and model ID | [ExpenseFlow](examples/expenseflow/README.md) | A selected OpenAI model reviews and proposes a fix for the ExpenseFlow IDOR scenario. |
+> **Important:** CodexLens is a security-review tool, not a security guarantee.
+> Static findings and AI findings still need normal engineering review, tests,
+> and deployment controls.
 
-The offline replay is prominently labelled **offline recorded replay**. It is a
-deterministic product walkthrough, not a substitute for a live model result.
+## Install
 
-## Capabilities
+CodexLens requires Python 3.11 or newer.
 
-| Pass | Execution | Purpose | Output |
-| --- | --- | --- | --- |
-| 1. Static analysis | Local | Scans Python files with regex, entropy, and AST checks. | Confirmed findings, candidates, and diagnostics. |
-| 2. AI deep scan | Optional OpenAI Responses API request | Reviews bounded, redacted source units for business-logic weaknesses. | Structured findings that require human review. |
-| 3. Interactive auto-fix | Optional after completed Pass 2 | Proposes a narrowly scoped source-unit replacement. | A locally generated diff and an explicit `y`/`n` decision. |
-
-Pass 1 detects likely hardcoded credentials and high-entropy secret candidates,
-dynamic shell use, `shell=True`, `eval`/`exec`, unsafe pickle/YAML
-deserialization, dynamically constructed database queries, and disabled TLS
-verification. Pass 2 assesses broken object-level authorization (including
-IDOR), privilege escalation, mass assignment, and race conditions.
-
-AI findings are review candidates rather than confirmed vulnerabilities. The
-tool is a security-review aid, not a security guarantee.
-
-## Installation and local verification
-
-### Requirements
-
-- Python 3.11 or newer
-- [uv](https://docs.astral.sh/uv/)
-- An OpenAI API key only for Pass 2 and Pass 3
-
-At the repository root:
+### From PyPI
 
 ```bash
-uv sync --all-groups
-uv run codexlens --help
-uv run codexlens scan src
-uv run codexlens demo
+python -m pip install --upgrade codexlens
+codexlens --version
+codexlens --help
 ```
 
-`scan src` runs Pass 1 only when no model is configured and makes no external
-request. `demo` stages a self-contained ExpenseFlow example in a temporary directory,
-replays schema-valid Pass 2 and Pass 3 responses through CodexLens' normal
-local validation path, presents the confirmation prompt, and discards the
-temporary source after completion.
+If you use [uv](https://docs.astral.sh/uv/), the equivalent is:
 
-## Live AI scanning
+```bash
+uv tool install codexlens
+codexlens --version
+codexlens --help
+```
 
-Live AI scanning requires an OpenAI API key and an accessible, text-capable
-model that supports the structured response format used by CodexLens. The
-model ID is supplied per live scan or through `CODEXLENS_MODEL`; CodexLens has
-no hard-coded model-family default or client-side model allowlist.
+### From source
+
+```bash
+git clone https://github.com/ShreyashChaurasia/CodexLens.git
+cd CodexLens
+uv sync --all-groups
+uv run codexlens --version
+```
+
+## Start with a local scan
+
+```bash
+codexlens scan ./my_project
+```
+
+With no model configured, this runs Pass 1 only. It stays local and makes no
+OpenAI request.
+
+## How the scan works
+
+| Pass | What happens | What you get |
+| --- | --- | --- |
+| 1. Static analysis | CodexLens walks Python files and uses regex, entropy checks, and AST analysis. | Confirmed findings, review candidates, and diagnostics. |
+| 2. AI deep review | An optional OpenAI Responses API call reviews bounded source units such as functions, classes, and routes. | Structured business-logic findings that still need human review. |
+| 3. Patch review | An optional second request is made only after a completed AI review and only with `--fix`. | A locally generated diff and an explicit approve-or-decline decision. |
+
+The local pass looks for likely hardcoded credentials, high-entropy secret
+candidates, dangerous shell construction, `shell=True`, `eval`/`exec`, unsafe
+pickle or YAML deserialization, dynamic database queries, and disabled TLS
+verification.
+
+The AI pass is aimed at problems that need more context: broken object-level
+authorization (including IDOR), privilege escalation, mass assignment, and
+race conditions. Treat those results as leads for review, not automatic proof
+of a vulnerability.
+
+## Run a live AI review
+
+Choose a model your OpenAI API account can access and that supports the
+structured response format used by CodexLens. The project does not hard-code a
+model family or keep a client-side allowlist.
 
 PowerShell:
 
 ```powershell
 $env:OPENAI_API_KEY = "<api-key>"
-$env:CODEXLENS_MODEL = "<model-id>"
-uv run codexlens scan ./my_project
-uv run codexlens scan ./my_project --model "another-model-id"
+codexlens scan ./my_project --model "model-id"
 ```
 
 Bash or zsh:
 
 ```bash
 export OPENAI_API_KEY="<api-key>"
-export CODEXLENS_MODEL="<model-id>"
-uv run codexlens scan ./my_project
+codexlens scan ./my_project --model "model-id"
 ```
 
-The `--model` / `-m` value overrides `CODEXLENS_MODEL`. Without either value,
-CodexLens intentionally completes only local Pass 1. With a model configured,
-Pass 2 uses the OpenAI Responses API and Pass 3 makes a separate request only
-when `--fix` is present. Model capabilities can be confirmed through OpenAI's
+You can also set `CODEXLENS_MODEL` once for your shell:
+
+```powershell
+$env:CODEXLENS_MODEL = "model-id"
+codexlens scan ./my_project
+```
+
+An explicit `--model` (or `-m`) always wins over `CODEXLENS_MODEL`. If neither
+is set, CodexLens intentionally stops after the local pass. Model availability
+and structured-output support can be checked in OpenAI's
 [model catalog](https://developers.openai.com/api/docs/models) and
 [Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs).
 
-> **Data-handling notice:** A live scan sends bounded source context to OpenAI,
-> and API usage is billed to the associated account. Known credentials,
-> sensitive assignments, and high-entropy literals are redacted heuristically
-> before submission, and API requests set `store=False`; these controls do not
-> guarantee removal of every sensitive detail. Live scanning is appropriate
-> only for code authorized for sharing with the selected service.
+Live scans send bounded source context to OpenAI and API usage is billed to the
+configured account. CodexLens sets `store=False` and redacts known credentials,
+sensitive assignments, and high-entropy literals where it can. Those are
+helpful safeguards, not a promise that every sensitive detail is removed, so
+only scan code you are authorized to share.
 
-## Interactive patch review
-
-A live Pass 3 run is requested with `--fix`:
+## Review a proposed patch
 
 ```bash
-uv run codexlens scan ./my_project --model "model-id" --fix
+codexlens scan ./my_project --model "model-id" --fix
 ```
 
-| Safeguard | Behavior |
-| --- | --- |
-| Eligibility | Only findings from a completed Pass 2 scan and bound to a reviewed Python source unit can reach Pass 3. |
-| Preview | CodexLens generates the unified diff locally after validating the replacement's target, scope, syntax, sensitive-content policy, bindings, and size. |
-| Confirmation | `y` is the only input that applies a proposal. `n`, Enter, missing input, or an interrupted prompt declines it. |
-| Application | A fresh file hash is checked before an atomic same-directory replacement. A run applies at most one validated patch. |
+Pass 3 is deliberately narrow:
 
-Declining a proposal permits review of another eligible proposal. After an
-accepted patch, a new scan and the project's test suite provide the next
-verification step. CodexLens does not execute model-provided commands or trust
-model-provided file paths and diffs.
+- It considers only findings from a completed AI review that are bound to a
+  reviewed Python source unit.
+- CodexLens builds the unified diff locally and validates the target, source
+  binding, replacement scope, syntax, sensitive-content policy, and size
+  before showing it.
+- `y` is the only response that writes a patch. `n`, Enter, unavailable input,
+  and an interrupted prompt all decline it.
+- Just before writing, CodexLens checks the file hash again and uses an atomic
+  same-directory replacement. One scan can apply at most one accepted patch.
 
-## ExpenseFlow showcase
+After accepting a change, run the scan again and run the project's tests.
+CodexLens never runs model-provided commands and does not trust
+model-provided paths or diffs.
 
-[`examples/expenseflow/`](examples/expenseflow/README.md) is a self-contained,
-intentionally vulnerable multi-tenant FastAPI service with synthetic data. The
-primary scenario is a manager in one tenant approving an expense belonging to
-another tenant: a broken-object-authorization / IDOR flaw that a role check
-alone does not prevent.
+`--format json` cannot be combined with `--fix` because patch review needs the
+interactive Rich terminal UI and an explicit confirmation.
 
-The baseline evidence is reproducible:
+## Try the offline walkthrough
+
+```bash
+codexlens demo
+```
+
+This is an **offline recorded replay**, not a live model result. It stages a
+temporary, owned ExpenseFlow fixture, sends recorded structured responses
+through CodexLens' local validation path, presents the same confirmation step,
+and discards the fixture afterward. It never calls the OpenAI API or changes
+your repository.
+
+## ExpenseFlow demo
+
+[ExpenseFlow](examples/expenseflow/README.md) is the intentionally vulnerable
+FastAPI example included with this project. Its main scenario is a manager in
+one tenant approving an expense from another tenant: an IDOR / broken
+object-level authorization flaw that a role check alone does not prevent.
+
+From a source checkout:
 
 ```bash
 cd examples/expenseflow
 uv sync --all-groups
-uv run pytest tests/test_exploit_proof.py tests/test_hardened_reference.py
+uv run pytest -vv tests/test_exploit_proof.py tests/test_hardened_reference.py
 ```
 
-The exploit-proof test passes by demonstrating the vulnerable cross-tenant
-approval. The hardened-reference test documents the intended security property.
-The example README contains the isolated live-patch workflow and post-patch
-regression test. The fixture must not be deployed or reused outside this
-controlled demonstration.
+The exploit-proof test passes by demonstrating the bug. The hardened-reference
+test records the behavior a real fix should preserve. The example README
+includes the disposable live-patch workflow and regression test. Do not deploy
+the fixture or reuse it as authorization guidance.
 
-The [Build Week recording script](BUILD_WEEK_DEMO_SCRIPT.md) documents the
-exploit → live scan → reviewed diff → regression-test sequence and separates
-the no-key replay from the live selected-model demonstration.
+For a complete recording runbook, see the
+[Build Week demo and video guide](BUILD_WEEK_DEMO_SCRIPT.md).
 
-## CI, reports, and exit codes
+## CI and JSON reports
 
-The Rich terminal UI is the default. `--format json` produces a stable,
-machine-readable report for CI and other tooling:
+Use JSON output when a CI job or another tool needs the scan result:
 
 ```bash
-uv run codexlens scan src --format json > codexlens-report.json
+codexlens scan src --format json > codexlens-report.json
 ```
 
-The report schema is `codexlens.scan.v1`. It contains relative locations,
-finding metadata, diagnostics, pass status, and the exit code. It intentionally
-omits raw source, raw Responses API output, source-unit bindings, and patch
-diffs. Finding descriptions can still contain code-derived information, so the
-report should be handled as potentially sensitive.
+The report stays local only when `--model` is not supplied and
+`CODEXLENS_MODEL` is unset. The schema is `codexlens.scan.v1`. Reports contain
+relative locations, finding metadata, diagnostics, pass status, and the exit
+code, but leave out raw source, raw API responses, source-unit bindings, and
+patch diffs. Finding descriptions can still contain code-derived information,
+so handle reports as potentially sensitive.
 
 | Exit code | Meaning |
 | --- | --- |
-| `0` | The requested scan completed with no confirmed static finding. |
+| `0` | The scan completed with no confirmed static finding. |
 | `1` | The scan completed with one or more confirmed static findings. |
-| `3` | A requested scan or fix did not complete safely; the output contains a diagnostic. |
+| `3` | A requested scan or patch workflow did not complete safely; inspect the diagnostic. |
 
-AI review candidates do not independently fail CI. `--format json` and `--fix`
-cannot be combined because patch review requires the interactive Rich diff and
-explicit confirmation.
-
-The included [GitHub Actions workflow](.github/workflows/ci.yml) installs
-locked dependencies on Python 3.11, runs Ruff and pytest for both projects, and
-uploads the static JSON report as an artifact.
-
-## Scope and security posture
-
-- Pass 1 is local. Pass 2 and Pass 3 are opt-in and request `store=False`.
-- Static detection and redaction are narrow heuristics, not complete
-  vulnerability coverage or data-loss prevention.
-- CodexLens audits Python source files only. Incomplete static or AI coverage
-  produces diagnostics and exit code `3` instead of a silent success.
-- Scanned code and model output are treated as untrusted data. Human review,
-  tests, and normal deployment controls remain required.
-- The CLI targets Windows, macOS, and Linux shells; both PowerShell and POSIX
-  environment-variable syntax are documented above.
+AI review candidates do not independently fail CI. The included
+[GitHub Actions workflow](.github/workflows/ci.yml) runs Ruff and pytest for
+both projects on Python 3.11, then uploads the static JSON report as an
+artifact.
 
 ## Development
 
@@ -193,10 +204,19 @@ uv run ruff check .
 uv run pytest
 ```
 
-## Project information
+## Scope and security notes
 
-- [Release history](https://github.com/ShreyashChaurasia/CodexLens/releases)
-- [Changelog](CHANGELOG.md)
+- CodexLens audits Python source files.
+- Pass 1 is local. Pass 2 and Pass 3 are opt-in and use `store=False`.
+- Static detection and redaction are heuristics; neither provides complete
+  vulnerability coverage or data-loss prevention.
+- Scanned code and model output are untrusted input. Keep human review, tests,
+  and normal deployment controls in the loop.
+- The CLI is intended to work from Windows, macOS, and Linux shells.
+
+## Project links
+
+- [PyPI package](https://pypi.org/project/codexlens/)
+- [GitHub Releases](https://github.com/ShreyashChaurasia/CodexLens/releases)
 - [Security policy](SECURITY.md)
-
-CodexLens is released under the [MIT License](LICENSE).
+- [MIT License](LICENSE)
