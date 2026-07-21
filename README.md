@@ -1,5 +1,16 @@
 # CodexLens
 
+```text
+ ██████╗ ██████╗ ██████╗ ███████╗██╗  ██╗██╗     ███████╗███╗   ██╗███████╗
+██╔════╝██╔═══██╗██╔══██╗██╔════╝╚██╗██╔╝██║     ██╔════╝████╗  ██║██╔════╝
+██║     ██║   ██║██║  ██║█████╗   ╚███╔╝ ██║     █████╗  ██╔██╗ ██║███████╗
+██║     ██║   ██║██║  ██║██╔══╝   ██╔██╗ ██║     ██╔══╝  ██║╚██╗██║╚════██║
+╚██████╗╚██████╔╝██████╔╝███████╗██╔╝ ██╗███████╗███████╗██║ ╚████║███████╗
+ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝
+```
+
+> Security review for business-logic bugs.
+
 [PyPI](https://pypi.org/project/codexlens/) · [GitHub Releases](https://github.com/ShreyashChaurasia/CodexLens/releases) · [Changelog](CHANGELOG.md)
 
 I built CodexLens because static scanners are good at finding known patterns,
@@ -26,6 +37,9 @@ python -m pip install --upgrade codexlens
 codexlens --version
 codexlens --help
 ```
+
+`codexlens --version` displays the CodexLens banner followed by the installed
+version number.
 
 If you use [uv](https://docs.astral.sh/uv/), the equivalent is:
 

@@ -21,9 +21,32 @@ from codexlens.reporting import (
     serialize_scan_result,
 )
 
+_ANSI_SHADOW_BANNER = """\
+ ██████╗ ██████╗ ██████╗ ███████╗██╗  ██╗██╗     ███████╗███╗   ██╗███████╗
+██╔════╝██╔═══██╗██╔══██╗██╔════╝╚██╗██╔╝██║     ██╔════╝████╗  ██║██╔════╝
+██║     ██║   ██║██║  ██║█████╗   ╚███╔╝ ██║     █████╗  ██╔██╗ ██║███████╗
+██║     ██║   ██║██║  ██║██╔══╝   ██╔██╗ ██║     ██╔══╝  ██║╚██╗██║╚════██║
+╚██████╗╚██████╔╝██████╔╝███████╗██╔╝ ██╗███████╗███████╗██║ ╚████║███████╗
+ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝
+"""
+
+_ROOT_HELP = (
+    "\b\n"
+    f"{_ANSI_SHADOW_BANNER}\n"
+    "Security review for business-logic bugs.\n\n"
+    "CodexLens combines local static analysis with optional OpenAI-assisted "
+    "business-logic review and human-approved patching for Python projects."
+)
+
+
+def _version_output(installed_version: str) -> str:
+    """Return the branded, human-readable version output."""
+
+    return f"{_ANSI_SHADOW_BANNER}\nVersion {installed_version}"
+
 app = typer.Typer(
     name="codexlens",
-    help="CodexLens: AI-powered security auditing for Python projects.",
+    help=_ROOT_HELP,
     no_args_is_help=True,
     add_completion=False,
 )
@@ -31,7 +54,7 @@ console = Console()
 
 
 def _show_version(value: bool) -> bool:
-    """Print the installed package version for release and support workflows."""
+    """Print the CodexLens banner and installed package version."""
 
     if not value:
         return value
@@ -39,7 +62,7 @@ def _show_version(value: bool) -> bool:
         installed_version = version("codexlens")
     except PackageNotFoundError:
         installed_version = __version__
-    typer.echo(installed_version)
+    typer.echo(_version_output(installed_version))
     raise typer.Exit()
 
 
@@ -50,7 +73,7 @@ def codexlens(
         typer.Option(
             "--version",
             callback=_show_version,
-            help="Show the installed CodexLens version and exit.",
+            help="Show the CodexLens banner and installed version, then exit.",
             is_eager=True,
         ),
     ] = False,
