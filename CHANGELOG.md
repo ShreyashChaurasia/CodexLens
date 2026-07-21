@@ -4,6 +4,18 @@ All notable changes to CodexLens are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-07-22
+
+### Fixed
+
+- Made the root help and `--version` wordmark ASCII-only so it works in
+  Windows terminals that still use a legacy code page.
+
+### Changed
+
+- Aligned CodexLens package metadata, lockfiles, release defaults, and the
+  owned ExpenseFlow example with the `0.2.1` patch release.
+
 ## [0.2.0] - 2026-07-22
 
 ### Removed

@@ -12,7 +12,7 @@ from codexlens.auto_fix.models import (
     PatchProposal,
     PatchStatus,
 )
-from codexlens.cli import _ANSI_SHADOW_BANNER, _confirm_patch, app
+from codexlens.cli import _TERMINAL_BANNER, _confirm_patch, _version_output, app
 from codexlens.models import (
     AiFinding,
     AiFindingConfidence,
@@ -38,7 +38,7 @@ def test_root_help_lists_scan_command() -> None:
     result = runner.invoke(app, ["--help"])
     plain = _plain_cli_output(result.output)
     banner_lines = {
-        line.strip() for line in _ANSI_SHADOW_BANNER.splitlines() if line.strip()
+        line.strip() for line in _TERMINAL_BANNER.splitlines() if line.strip()
     }
     output_lines = {line.strip() for line in plain.splitlines() if line.strip()}
 
@@ -52,12 +52,13 @@ def test_root_version_reports_installed_package_version() -> None:
     result = runner.invoke(app, ["--version"])
     output_lines = {line.strip() for line in result.output.splitlines() if line.strip()}
     banner_lines = {
-        line.strip() for line in _ANSI_SHADOW_BANNER.splitlines() if line.strip()
+        line.strip() for line in _TERMINAL_BANNER.splitlines() if line.strip()
     }
 
     assert result.exit_code == 0
     assert banner_lines <= output_lines
     assert f"Version {__version__}" in output_lines
+    assert _version_output(__version__).isascii()
 
 
 def test_scan_help_documents_target_and_fix() -> None:

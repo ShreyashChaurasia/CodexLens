@@ -20,18 +20,17 @@ from codexlens.reporting import (
     serialize_scan_result,
 )
 
-_ANSI_SHADOW_BANNER = """\
- ██████╗ ██████╗ ██████╗ ███████╗██╗  ██╗██╗     ███████╗███╗   ██╗███████╗
-██╔════╝██╔═══██╗██╔══██╗██╔════╝╚██╗██╔╝██║     ██╔════╝████╗  ██║██╔════╝
-██║     ██║   ██║██║  ██║█████╗   ╚███╔╝ ██║     █████╗  ██╔██╗ ██║███████╗
-██║     ██║   ██║██║  ██║██╔══╝   ██╔██╗ ██║     ██╔══╝  ██║╚██╗██║╚════██║
-╚██████╗╚██████╔╝██████╔╝███████╗██╔╝ ██╗███████╗███████╗██║ ╚████║███████╗
- ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝╚══════╝
+_TERMINAL_BANNER = """\
+  ____ ___  ____  _______  __ _     _____ _   _ ____
+ / ___/ _ \\|  _ \\| ____\\ \\ / /| |   | ____| \\ | / ___|
+| |  | | | | | | |  _|  \\  / | |   |  _| |  \\| \\___ \\
+| |__| |_| | |_| | |___ /  \\ | |___| |___| |\\  |___) |
+ \\____\\___/|____/|_____/_/\\_\\_____|_____|_| \\_|____/
 """
 
 _ROOT_HELP = (
     "\b\n"
-    f"{_ANSI_SHADOW_BANNER}\n"
+    f"{_TERMINAL_BANNER}\n"
     "Security review for business-logic bugs.\n\n"
     "CodexLens combines local static analysis with optional OpenAI-assisted "
     "business-logic review and human-approved patching for Python projects."
@@ -41,7 +40,7 @@ _ROOT_HELP = (
 def _version_output(installed_version: str) -> str:
     """Return the branded, human-readable version output."""
 
-    return f"{_ANSI_SHADOW_BANNER}\nVersion {installed_version}"
+    return f"{_TERMINAL_BANNER}\nVersion {installed_version}"
 
 app = typer.Typer(
     name="codexlens",

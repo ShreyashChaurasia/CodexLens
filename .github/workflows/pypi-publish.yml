@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to publish (for example, v0.2.0)
+        description: Existing release tag to publish (for example, v0.2.1)
         required: true
-        default: v0.2.0
+        default: v0.2.1
         type: string
 
 permissions:
@@ -40,7 +40,7 @@ jobs:
           tag="$RELEASE_TAG"
 
           if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Tag must be a stable version such as v0.1.0." >&2
+            echo "Tag must be a stable version such as v0.2.1." >&2
             exit 1
           fi
 

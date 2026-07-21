@@ -10,7 +10,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="ExpenseFlow demo", version="0.1.0")
+app = FastAPI(title="ExpenseFlow demo", version="0.2.1")
 
 
 @dataclass(frozen=True, slots=True)

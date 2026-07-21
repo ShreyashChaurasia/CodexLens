@@ -1,6 +1,6 @@
 [project]
 name = "expenseflow-demo"
-version = "0.1.0"
+version = "0.2.1"
 description = "Intentionally vulnerable, owned FastAPI example for CodexLens."
 requires-python = ">=3.11"
 dependencies = [

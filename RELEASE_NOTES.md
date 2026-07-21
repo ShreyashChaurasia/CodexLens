@@ -1,31 +1,26 @@
-# CodexLens v0.2.0
+# CodexLens v0.2.1
 
-CodexLens v0.2.0 focuses the project on its production security-review
+CodexLens v0.2.1 is a compatibility patch for the production security-review
 workflow: local static analysis, optional OpenAI business-logic review, and
 human-approved patching.
 
 ## Highlights
 
-- Removed the legacy non-production walkthrough command and temporary project
-  planning material.
-- Kept ExpenseFlow as a focused, intentionally vulnerable integration example
-  with exploit proof, hardened-reference behavior, and a live patch regression
-  path.
-- Added the ANSI Shadow CodexLens mark to the README, root help, and version
-  output.
-- Retained JSON reporting, confirmation-gated patches, strict local patch
-  validation, and model-neutral OpenAI Responses API support.
+- Replaced the Unicode banner used by root help and `codexlens --version` with
+  an ASCII-only wordmark, so the command works in Windows terminals using a
+  legacy code page.
+- Kept package metadata, lockfiles, the PyPI workflow default, and the owned
+  ExpenseFlow example on the same `0.2.1` version.
 
 ## Upgrade notes
 
-- `codexlens demo` has been removed. Use `codexlens scan` for local static
-  analysis or a configured `--model` review instead.
-- `codexlens --version` is now human-readable branded output. Tools that need
-  only the installed version should use Python package metadata.
+- `codexlens --version` remains human-readable branded output and is now safe
+  to run in standard Windows consoles. Tools that need only the installed
+  version should use Python package metadata.
 
 ## Verification
 
-This release is built from the `v0.2.0` tag after locked dependency install,
+This release is built from the `v0.2.1` tag after locked dependency install,
 Ruff checks, the full test suite, and source/wheel builds. The attached
 artifacts are the release source distribution and universal Python wheel.
 

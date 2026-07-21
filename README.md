@@ -38,8 +38,8 @@ codexlens --version
 codexlens --help
 ```
 
-`codexlens --version` displays the CodexLens banner followed by the installed
-version number.
+`codexlens --version` displays a terminal-safe CodexLens banner followed by
+the installed version number.
 
 If you use [uv](https://docs.astral.sh/uv/), the equivalent is:
 
